@@ -471,6 +471,7 @@ class MainWindow(QMainWindow):
     def appendText(self, text):
         self.debugText.append(text)  # 将接收到的数据追加到文本编辑框
 
+    #————————————————————————————————---下载相关函数——————————————————————————————————————————————————
     def displayData(self, data):
         bytes_data = bytes(data)
         # 显示文件内容
@@ -487,6 +488,7 @@ class MainWindow(QMainWindow):
     def setprogress(self,index):
         print(str(index))
         self.progressBar.setValue(int((index/self.filesize)*100))
+        self.debugText.append('下载进度：'+int((index/self.filesize)*100)+'%')
 
     # ————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
     # def restartApp(self):
