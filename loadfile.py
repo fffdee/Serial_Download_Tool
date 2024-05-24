@@ -488,7 +488,7 @@ class MainWindow(QMainWindow):
     def setprogress(self,index):
         print(str(index))
         self.progressBar.setValue(int((index/self.filesize)*100))
-        self.debugText.append('下载进度：'+int((index/self.filesize)*100)+'%')
+        self.debugText.append('下载进度：'+str(int((index/self.filesize)*100))+'%')
 
     # ————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
     # def restartApp(self):
