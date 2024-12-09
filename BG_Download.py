@@ -17,7 +17,6 @@ class BinFileReader(QThread):
         self.data = bytearray()
         self.serial_port = serial_port
         self.baud_rate = baud_rate
-        self.stopped = False  # 添加一个标志来控制线程的停止
     def run(self):
         # 打开文件并读取内容
         with open(self.file_path, 'rb') as file:
@@ -37,14 +36,13 @@ class BinFileReader(QThread):
             
         except serial.SerialException as e:
             print(f"串口打开时发生错误: {e}")
+            QMessageBox.warning(None, 'err!', str(e), QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Ok) 
             
         
         self.ser.flushInput()
-        # 获取文件名
         file_name = self.file_path.split('/')[-1]
         # 文件大小
         file_size = os.path.getsize(self.file_path)
-
         self.filesize_signal.emit(file_size)
         # 初始化状态
         state = 'SEND_FILE'
@@ -67,7 +65,7 @@ class BinFileReader(QThread):
         self.ser.write(struct.pack('>I', 0))  # 文件校验和
         # 发送文件内容
         index = 0
-        for i in range(0, file_size, ):
+        for i in range(0, file_size, 128):
             if i + 128 <= file_size:
                 self.ser.write(struct.pack('B', 0x02))  # 数据包类型
                 self.ser.write(struct.pack('>I', i))  # 数据包起始位置
@@ -85,48 +83,6 @@ class BinFileReader(QThread):
                
 
         self.data_signal.emit(bytearray("ok",'utf-8'))
-    
-    def stop_download(self):
-        self.stopped = True  # 设置停止标志
-        
-    def cleanup(self):
-        # 清理资源，如关闭串口
-        if hasattr(self, 'ser') and self.ser.is_open:
-            self.ser.close()
-            print("串口已关闭。")
-
-    # def ymodem_send(ser, file_path):
-    #     # 文件路径
-    #     file_name = file_path.split('/')[-1]
-    #     # 文件大小
-    #     file_size = os.path.getsize(file_path)
-    #     # 初始化状态
-    #     state = 'SEND_FILE'
-    #     # 初始化文件索引
-    #     file_index = 0
-    #     # 初始化文件数据
-    #     file_data = bytearray()
-    #     # 读取文件内容
-    #     with open(file_path, 'rb') as file:
-    #         file_data = file.read()
-    #     # 发送文件信息
-    #     ser.write(struct.pack('B', 0x01))  # 文件信息长度为1
-    #     ser.write(struct.pack('B', len(file_name)))  # 文件名长度
-    #     ser.write(file_name.encode())  # 文件名
-    #     ser.write(struct.pack('>I', file_size))  # 文件大小
-    #     ser.write(struct.pack('>I', 0))  # 文件校验和
-    #     # 发送文件内容
-    #     for i in range(0, file_size, 128):
-    #         if i + 128 <= file_size:
-    #             ser.write(struct.pack('B', 0x02))  # 数据包类型
-    #             ser.write(struct.pack('>I', i))  # 数据包起始位置
-    #             ser.write(file_data[i:i+128])  # 数据包内容
-    #             ser.write(struct.pack('>I', 0))  # 数据包校验和
-    #         else:
-    #             ser.write(struct.pack('B', 0x03))  # 数据包类型
-    #             ser.write(struct.pack('>I', i))  # 数据包起始位置
-    #             ser.write(file_data[i:])  # 数据包内容
-    #             ser.write(struct.pack('>I', 0))  # 数据包校验和
 
 class SerialThread(QThread):
     new_data_signal = pyqtSignal(str)  # 定义一个信号，用于传输接收到的数据
@@ -235,15 +191,6 @@ class MainWindow(QMainWindow):
         self.debugText = QTextEdit(self)
         self.debugText.setStyleSheet("QTextEdit { color: #000; font-size: 14px; }")
     
-        self.debugbtn = QPushButton("调试模式", self)
-        self.debugbtn.setCheckable(True)
-        self.debugbtn.setChecked(False)
-        self.debugbtn.setFixedWidth(100)
-        self.debugbtn.setFixedHeight(40)
-        self.debugbtn.setStyleSheet(("QPushButton { background-color: #111111; color: white; }"
-                     "QPushButton:hover { background-color: #FFFFFF;color: black; }"
-                     "QPushButton:pressed { background-color: #00FF00; }"))
-        self.debugbtn.toggled.connect(self.debug_changed)
 
         self.sendText = QTextEdit(self)
         self.sendText.setStyleSheet("QTextEdit { color: #000; font-size: 14px; }")
@@ -312,7 +259,6 @@ class MainWindow(QMainWindow):
         self.layout4 = QHBoxLayout()
         self.layout4.setSpacing(20)
         self.layout4.addWidget(self.debugLabel)
-        self.layout4.addWidget(self.debugbtn) 
         self.layout4.setContentsMargins(20, 0, 20, 0)
 
         self.layout5 = QHBoxLayout()
@@ -398,14 +344,8 @@ class MainWindow(QMainWindow):
             self.layout5.addLayout(self.layoutx)
             self.startThread()
             self.debugText.append('打开调试')
-            self.debugbtn.setText("关闭调试")
-        else:
-            
-            layout = self.centralWidget().layout()  # 获取中心窗口的布局
-            layout.deleteLater()  # 删除布局
-            self.debugText.append('关闭调试')
-            self.debugbtn.setText("关闭软件")
-            self.baudRateLabel.setText("下载模式:")
+
+       
     def senddata(self):
         self.serial_thread.ser.write(self.sendText.toPlainText().encode('utf-8'))
 
@@ -435,7 +375,7 @@ class MainWindow(QMainWindow):
             self.bin_reader.start()
             self.DOWNLOAD.setText("取消下载")
         else:
-            self.bin_reader.stop_download()
+       
             # self.debugText.append('取消下载')
             self.DOWNLOAD.setText("开始下载")
     #  ————————————————————————————————————————————————串口接收线程系列函数——————————————————————————————————————————————————            
@@ -475,17 +415,15 @@ class MainWindow(QMainWindow):
         print("结束")
       except Exception as e:
         print(f"等待线程退出时出现错误: {e}")
-     
-        
-      
-        
+
     
     def appendText(self, text):
         self.debugText.append(text)  # 将接收到的数据追加到文本编辑框
 
     #————————————————————————————————---下载相关函数——————————————————————————————————————————————————
-    def displayData(self, data):
 
+
+    def displayData(self, data):
         bytes_data = bytes(data)
         # 显示文件内容
         if bytes_data[-1] == 0x6B:
@@ -495,12 +433,9 @@ class MainWindow(QMainWindow):
             # 将bytes对象转换为十六进制字符串
         hex_string = ' '.join(f'{b:02X}' for b in bytes_data)
         self.debugText.append(hex_string ) 
-
     def getfilesize(self, size):
         print("filesize:"+str(size))
         self.filesize = size
-
-    # 设置进度条显示
     def setprogress(self,index):
         print(str(index))
         self.progressBar.setValue(int((index/self.filesize)*100))
