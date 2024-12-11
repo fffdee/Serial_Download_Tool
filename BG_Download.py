@@ -4,128 +4,10 @@ from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
 from PyQt5.QtGui import QPixmap,QIcon
 from PyQt5.QtCore import Qt,QThread,pyqtSignal
 import serial
-import struct
-import threading
 
-class BinFileReader(QThread):
-    data_signal = pyqtSignal(bytearray)  # 定义一个信号，用于传输读取到的数据
-    progress_signal = pyqtSignal(int)  # 定义一个信号，用于传输读取到的数据
-    filesize_signal = pyqtSignal(int)  # 定义一个信号，用于传输读取到的数据
-    def __init__(self, file_path,serial_port, baud_rate,parent=None):
-        super().__init__(parent)
-        self.file_path = file_path
-        self.data = bytearray()
-        self.serial_port = serial_port
-        self.baud_rate = baud_rate
-    def run(self):
-        # 打开文件并读取内容
-        with open(self.file_path, 'rb') as file:
-                
-                 try:
-                     self.data = file.read()
-                 except serial.SerialException as e:
-                            QMessageBox.warning(self, 'tips!', str(e), QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Ok) 
-        self.data = bytearray(self.data) 
-        self.data_signal.emit(self.data)  # 发射信号，传递读取到的数据
-        try:
-            self.ser = serial.Serial(self.serial_port, self.baud_rate)
-            if self.ser.is_open:
-             print("串口已成功打开。")
-            else:
-             print("串口打开失败。")
-            
-        except serial.SerialException as e:
-            print(f"串口打开时发生错误: {e}")
-            QMessageBox.warning(None, 'err!', str(e), QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Ok) 
-            
-        
-        self.ser.flushInput()
-        file_name = self.file_path.split('/')[-1]
-        # 文件大小
-        file_size = os.path.getsize(self.file_path)
-        self.filesize_signal.emit(file_size)
-        # 初始化状态
-        state = 'SEND_FILE'
-        # 初始化文件索引
-        file_index = 0
-        # 初始化文件数据
-        file_data = bytearray()
-        # 读取文件内容
-        try:
 
-            with open(self.file_path, 'rb') as file:
-                file_data = file.read()
-        except serial.SerialException as e:
-                QMessageBox.warning(self, 'tips!', str(e), QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Ok)
-        # 发送文件信息
-        self.ser.write(struct.pack('B', 0x01))  # 文件信息长度为1
-        self.ser.write(struct.pack('B', len(file_name)))  # 文件名长度
-        self.ser.write(file_name.encode())  # 文件名
-        self.ser.write(struct.pack('>I', file_size))  # 文件大小
-        self.ser.write(struct.pack('>I', 0))  # 文件校验和
-        # 发送文件内容
-        index = 0
-        for i in range(0, file_size, 128):
-            if i + 128 <= file_size:
-                self.ser.write(struct.pack('B', 0x02))  # 数据包类型
-                self.ser.write(struct.pack('>I', i))  # 数据包起始位置
-                self.ser.write(file_data[i:i+128])  # 数据包内容
-                self.ser.write(struct.pack('>I', 0))  # 数据包校验和
-                index+=128
-                self.progress_signal.emit(index)
-            else:
-                self.ser.write(struct.pack('B', 0x03))  # 数据包类型
-                self.ser.write(struct.pack('>I', i))  # 数据包起始位置
-                self.ser.write(file_data[i:])  # 数据包内容
-                self.ser.write(struct.pack('>I', 0))  # 数据包校验和
-                index+=128
-                self.progress_signal.emit(index)
-               
+from binfilereader import BinFileReader ,SerialThread
 
-        self.data_signal.emit(bytearray("ok",'utf-8'))
-
-class SerialThread(QThread):
-    new_data_signal = pyqtSignal(str)  # 定义一个信号，用于传输接收到的数据
-    finished_signal = pyqtSignal(serial.Serial)
-   
-    def __init__(self, serial_port, baud_rate):
-        super().__init__()
-        self.serial_port = serial_port
-        self.baud_rate = baud_rate
-        self.stop_event = threading.Event()  # 创建一个停止事件
-
-    def close_serial(self):
-        if self.ser is not None:
-            self.stop_event.set()
-            self.ser.close()
-           
-
-    def run(self):
-        # 串口接收数据的代码将被放在这里
-        try:
-            self.ser = serial.Serial(self.serial_port, self.baud_rate)
-            if self.ser.is_open:
-             print("串口已成功打开。")
-             self.ser.flushInput()
-            else:
-             print("串口打开失败。")
-            
-        except serial.SerialException as e:
-            print(f"串口打开时发生错误: {e}")
-            
-        
-        
-       # self.ser.write(B"helloWorld!\n")
-        while not self.stop_event.is_set():
-            # 这里只是模拟接收数据的过程
-            if self.ser.in_waiting > 0:
-                # 如果有数据可读，读取数据
-                data = self.ser.read(self.ser.in_waiting).decode('utf-8').strip()  # 读取所有可读数据
-                print(f"Received data: {data}")
-                self.new_data_signal.emit(data)  # 发射信号，传递接收到的数据
-                
-            # data = self.ser.readline().decode('utf-8').strip()
-    
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -327,7 +209,7 @@ class MainWindow(QMainWindow):
     def select_file(self):
         # 显示文件选择对话框
         options = QFileDialog.Options()
-        self.file_path, _ = QFileDialog.getOpenFileName(self, "选取文件", "", "下载文件 (*.bin)", options=options)
+        self.file_path, _ = QFileDialog.getOpenFileName(self, "选取文件", "", "下载文件 (*.bin *.bg)", options=options)
         
         # 如果用户选择了文件
         if  self.file_path != None:
@@ -336,14 +218,6 @@ class MainWindow(QMainWindow):
             self.debugText.append("读取的文件："+ self.file_path)
         
 
-    def debug_changed(self, state):
-        if state == True:
-            
-            self.baudRateLabel.setText("波特率:")
-            self.baudRateComboBox.setCurrentIndex(5)
-            self.layout5.addLayout(self.layoutx)
-            self.startThread()
-            self.debugText.append('打开调试')
 
        
     def senddata(self):
@@ -372,11 +246,12 @@ class MainWindow(QMainWindow):
             self.bin_reader.progress_signal.connect(self.setprogress)  # 连接信号和槽函数
             self.bin_reader.data_signal.connect(self.displayData)  # 连接信号和槽函数
             self.bin_reader.filesize_signal.connect(self.getfilesize)  # 连接信号和槽函数
-            self.bin_reader.start()
+            self.bin_reader.run()
             self.DOWNLOAD.setText("取消下载")
         else:
        
             # self.debugText.append('取消下载')
+            self.bin_reader.stop()
             self.DOWNLOAD.setText("开始下载")
     #  ————————————————————————————————————————————————串口接收线程系列函数——————————————————————————————————————————————————            
     def startThread(self):
@@ -437,7 +312,7 @@ class MainWindow(QMainWindow):
         print("filesize:"+str(size))
         self.filesize = size
     def setprogress(self,index):
-        print(str(index))
+       # print(str(index))
         self.progressBar.setValue(int((index/self.filesize)*100))
         self.debugText.append('下载进度：'+str(int((index/self.filesize)*100))+'%')
 
