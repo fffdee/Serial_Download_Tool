@@ -251,7 +251,8 @@ class MainWindow(QMainWindow):
         else:
        
             # self.debugText.append('取消下载')
-            self.bin_reader.stop()
+            # self.stopThread()
+            # self.bin_reader.stop()
             self.DOWNLOAD.setText("开始下载")
     #  ————————————————————————————————————————————————串口接收线程系列函数——————————————————————————————————————————————————            
     def startThread(self):

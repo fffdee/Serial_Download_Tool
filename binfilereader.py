@@ -19,7 +19,7 @@ class BinFileReader(QThread):
         self.channel = 0
         self.file_count = 0
         self.running = True  # 控制线程运行的标志
-
+        self.data = bytearray()  # 初始化 self.data 为一个空字节串
     def run(self):
         try:
             self.ser = serial.Serial(self.serial_port, self.baud_rate)
@@ -38,6 +38,8 @@ class BinFileReader(QThread):
         try:
             with open(self.file_path, 'rb') as file:
                 file_name = self.file_path.split('/')[-1]
+                file_name=file_name.split('.')[0]
+                print(file_name)
                 file.seek(0)
                 self.file_count = int.from_bytes(file.read(4), byteorder='little')
                 
@@ -55,18 +57,27 @@ class BinFileReader(QThread):
                 file.seek(10)
                 self.channel = int.from_bytes(file.read(2), byteorder='little')
                 print(self.channel)
-
-
-                self.ser.write(struct.pack('B', 0x01))
-                self.ser.write(struct.pack('B', len(file_name)))
-                self.ser.write(file_name.encode())
-                self.ser.write(struct.pack('>I', self.file_count))
-                self.ser.write(struct.pack('>I', self.bitrate))
-                self.ser.write(struct.pack('>H', self.data_depth))
-                self.ser.write(struct.pack('>H', self.channel))
-                self.ser.write(struct.pack('>I', file_size))
-                self.ser.write(struct.pack('>I', 0))
-
+                
+                self.data +=struct.pack('B', 0x01)
+                self.data +=struct.pack('B', len(file_name.split('.')[0]))
+                self.data +=file_name.encode()
+                self.data +=struct.pack('>I', self.file_count)
+                self.data +=struct.pack('>I', self.bitrate)
+                self.data +=struct.pack('>H', self.data_depth)
+                self.data +=struct.pack('>H', self.channel)
+                self.data +=struct.pack('>I', file_size)
+                self.data +=struct.pack('>I', 0)
+                self.ser.write(self.data)
+                # self.ser.write(struct.pack('B', 0x01))
+                # self.ser.write(struct.pack('B', len(file_name)))
+                # self.ser.write(file_name.encode())
+                # self.ser.write(struct.pack('>I', self.file_count))
+                # self.ser.write(struct.pack('>I', self.bitrate))
+                # self.ser.write(struct.pack('>H', self.data_depth))
+                # self.ser.write(struct.pack('>H', self.channel))
+                # self.ser.write(struct.pack('>I', file_size))
+                # self.ser.write(struct.pack('>I', 0))
+                print(self.data.hex())
                 index = 0
                 while self.running:
                     chunk = file.read(128)
