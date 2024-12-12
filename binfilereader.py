@@ -25,6 +25,7 @@ class BinFileReader(QThread):
             self.ser = serial.Serial(self.serial_port, self.baud_rate)
             if self.ser.is_open:
                 print("串口已成功打开。")
+                # self.ser.write(0x666666)
             else:
                 print("串口打开失败。")
         except serial.SerialException as e:
@@ -67,17 +68,16 @@ class BinFileReader(QThread):
                 self.data +=struct.pack('>H', self.channel)
                 self.data +=struct.pack('>I', file_size)
                 self.data +=struct.pack('>I', 0)
+                self.ser.write(struct.pack('i', 1111))
                 self.ser.write(self.data)
-                # self.ser.write(struct.pack('B', 0x01))
-                # self.ser.write(struct.pack('B', len(file_name)))
-                # self.ser.write(file_name.encode())
-                # self.ser.write(struct.pack('>I', self.file_count))
-                # self.ser.write(struct.pack('>I', self.bitrate))
-                # self.ser.write(struct.pack('>H', self.data_depth))
-                # self.ser.write(struct.pack('>H', self.channel))
-                # self.ser.write(struct.pack('>I', file_size))
-                # self.ser.write(struct.pack('>I', 0))
-                print(self.data.hex())
+                
+
+                print(f"Sent data: {self.data.hex()}")  # 日志记录发送的数据
+
+               
+
+    
+                # print(self.data.hex())
                 index = 0
                 while self.running:
                     chunk = file.read(128)

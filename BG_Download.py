@@ -56,7 +56,7 @@ class MainWindow(QMainWindow):
         self.baudRateLabel.setStyleSheet("QLabel { color: #000; font-size: 20px; }")
         self.baudRateComboBox = QComboBox()
         self.baudRateComboBox.setEditable(True)
-        self.baudRateComboBox.addItems(['MIDI','9600', '19200', '38400', '57600', '115200' ])
+        self.baudRateComboBox.addItems(['115200','MIDI','9600', '19200', '38400', '57600' ])
        
         self.baudRateComboBox.setFixedWidth(100)
         self.baudRateComboBox.setFixedHeight(40)
@@ -246,13 +246,14 @@ class MainWindow(QMainWindow):
             self.bin_reader.progress_signal.connect(self.setprogress)  # 连接信号和槽函数
             self.bin_reader.data_signal.connect(self.displayData)  # 连接信号和槽函数
             self.bin_reader.filesize_signal.connect(self.getfilesize)  # 连接信号和槽函数
-            self.bin_reader.run()
+            self.bin_reader.start()
             self.DOWNLOAD.setText("取消下载")
         else:
        
             # self.debugText.append('取消下载')
             # self.stopThread()
             # self.bin_reader.stop()
+            
             self.DOWNLOAD.setText("开始下载")
     #  ————————————————————————————————————————————————串口接收线程系列函数——————————————————————————————————————————————————            
     def startThread(self):
