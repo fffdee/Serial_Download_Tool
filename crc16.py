@@ -1,0 +1,8 @@
+import crcmod
+
+# 使用预定义的CRC-16-CCITT多项式
+crc16_func = crcmod.predefined.mkPredefinedCrcFun('crc-ccitt-false')
+
+data = b"0200029d808bfebcfee7fe0bff26ff37ff3dff38ff2bff15fffafedbfebdfea2fe8dfe7ffe7afe80fe90feaafed0fefffe37ff77ffbdff0b006000b80015017301d30131028b02df022c036b03a003c603dd03e603e303d503be03a20381035e033a031703f402d202b1029302780260024b023d0232022e023002380246025a02740290020000"
+crc_checksum = crc16_func(data)
+print(f"CRC16 checksum: {crc_checksum:#04x}")

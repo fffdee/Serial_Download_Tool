@@ -253,7 +253,8 @@ class MainWindow(QMainWindow):
             # self.debugText.append('取消下载')
             # self.stopThread()
             # self.bin_reader.stop()
-            
+            # if self.serial_thread.isRunning():
+            #     self.stopThread()
             self.DOWNLOAD.setText("开始下载")
     #  ————————————————————————————————————————————————串口接收线程系列函数——————————————————————————————————————————————————            
     def startThread(self):

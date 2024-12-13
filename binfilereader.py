@@ -4,6 +4,8 @@ import serial
 import os
 import struct
 import threading
+
+import crcmod
 class BinFileReader(QThread):
 
     data_signal = pyqtSignal(bytearray)
@@ -35,7 +37,7 @@ class BinFileReader(QThread):
 
         file_size = os.path.getsize(self.file_path)
         self.filesize_signal.emit(file_size)
-
+        crc16_func = crcmod.predefined.mkPredefinedCrcFun('crc-ccitt-false')
         try:
             with open(self.file_path, 'rb') as file:
                 file_name = self.file_path.split('/')[-1]
@@ -67,8 +69,7 @@ class BinFileReader(QThread):
                 self.data +=struct.pack('>H', self.data_depth)
                 self.data +=struct.pack('>H', self.channel)
                 self.data +=struct.pack('>I', file_size)
-                self.data +=struct.pack('>I', 0)
-                self.ser.write(struct.pack('i', 1111))
+                self.data +=struct.pack('>H', crc16_func(self.data))
                 self.ser.write(self.data)
                 
 
@@ -83,10 +84,16 @@ class BinFileReader(QThread):
                     chunk = file.read(128)
                     if not chunk:
                         break
-                    self.ser.write(struct.pack('B', 0x02 if len(chunk) == 128 else 0x03))
-                    self.ser.write(struct.pack('>I', index))
-                    self.ser.write(chunk)
-                    self.ser.write(struct.pack('>I', 0))
+                    self.data = b''
+                    if len(chunk) == 128:
+                        self.data += struct.pack('B', 0x02)
+                    else:
+                        self.data += struct.pack('B', 0x02)
+                    self.data += struct.pack('>I', index)
+                    self.data +=chunk
+                    self.data +=struct.pack('>I', crc16_func(self.data))
+                    self.ser.write(self.data)
+                    print(self.data.hex())
                     index += len(chunk)
                     self.progress_signal.emit(index)
         except Exception as e:
