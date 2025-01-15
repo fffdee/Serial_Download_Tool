@@ -209,7 +209,7 @@ class MainWindow(QMainWindow):
     def select_file(self):
         # 显示文件选择对话框
         options = QFileDialog.Options()
-        self.file_path, _ = QFileDialog.getOpenFileName(self, "选取文件", "", "下载文件 (*.bin *.bg)", options=options)
+        self.file_path, _ = QFileDialog.getOpenFileName(self, "选取文件", "", "下载文件 (*.bin *.bg *.bgs)", options=options)
         
         # 如果用户选择了文件
         if  self.file_path != None:
@@ -308,6 +308,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'wuhu~',"发送成功！", QMessageBox.Ok , QMessageBox.Ok)
             self.DOWNLOAD.setText("开始下载") 
             self.DOWNLOAD.setChecked(False)  
+            self.progressBar.setValue(0)
             # 将bytes对象转换为十六进制字符串
         hex_string = ' '.join(f'{b:02X}' for b in bytes_data)
         self.debugText.append(hex_string ) 

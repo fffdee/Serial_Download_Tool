@@ -4,7 +4,7 @@ import serial
 import os
 import struct
 import threading
-
+import time
 import crcmod
 class BinFileReader(QThread):
 
@@ -42,66 +42,121 @@ class BinFileReader(QThread):
             with open(self.file_path, 'rb') as file:
                 file_name = self.file_path.split('/')[-1]
                 file_name=file_name.split('.')[0]
-                print(file_name)
-                file.seek(0)
-                self.file_count = int.from_bytes(file.read(4), byteorder='little')
+                # print(file_name)
+                # file.seek(0)
+                # self.file_count = int.from_bytes(file.read(4), byteorder='little')
                 
-                print(str(self.file_count))
+                # print(str(self.file_count))
 
-                file.seek(4)
-                self.bitrate = int.from_bytes(file.read(4), byteorder='little')
+                # file.seek(4)
+                # self.bitrate = int.from_bytes(file.read(4), byteorder='little')
                 
-                print(str(self.bitrate) )
-                file.seek(8)
-                self.data_depth = int.from_bytes(file.read(2), byteorder='little')
+                # print(str(self.bitrate) )
+                # file.seek(8)
+                # self.data_depth = int.from_bytes(file.read(2), byteorder='little')
                 
-                print(str(self.data_depth))
+                # print(str(self.data_depth))
 
-                file.seek(10)
-                self.channel = int.from_bytes(file.read(2), byteorder='little')
-                print(self.channel)
+                # file.seek(10)
+                # self.channel = int.from_bytes(file.read(2), byteorder='little')
+                # print(self.channel)
                 
-                self.data +=struct.pack('B', 0x01)
-                self.data +=struct.pack('B', len(file_name.split('.')[0]))
-                self.data +=file_name.encode()
-                self.data +=struct.pack('>I', self.file_count)
-                self.data +=struct.pack('>I', self.bitrate)
-                self.data +=struct.pack('>H', self.data_depth)
-                self.data +=struct.pack('>H', self.channel)
-                self.data +=struct.pack('>I', file_size)
-                self.data +=struct.pack('>H', crc16_func(self.data))
-                self.ser.write(self.data)
+                # self.data +=struct.pack('B', 0x01)
+                # self.data +=struct.pack('B', len(file_name.split('.')[0]))
+                # self.data +=file_name.encode()
+                # # self.data +=struct.pack('>I', self.file_count)
+                # # self.data +=struct.pack('>I', self.bitrate)
+                # # self.data +=struct.pack('>H', self.data_depth)
+                # # self.data +=struct.pack('>H', self.channel)
+                # self.data +=struct.pack('>I', file_size)
+                # # self.data +=struct.pack('>H', crc16_func(self.data))
+                # self.ser.write(self.data)
                 
 
-                print(f"Sent data: {self.data.hex()}")  # 日志记录发送的数据
+                # print(f"Sent data: {self.data.hex()}")  # 日志记录发送的数据
+                # print(len(self.data))    
 
-               
-
+                # if not self.wait_for_ack():
+                #         print("Did not receive 0xFF acknowledgement.")
+                # else:       
+                #         print("receive 0xFF acknowledgement.")
+                     
     
+                # # # print(self.data.hex())
+                # chunk = file.read(64)
+             
+                # self.data = b''
+                #     # if len(chunk) == 128:
+                #     #     self.data += struct.pack('B', 0x02)
+                #     # else:
+                #     #     self.data += struct.pack('B', 0x02)
+                #     # self.data += struct.pack('>I', index)
+                # self.data =chunk
+                #     # self.data +=struct.pack('>I', crc16_func(self.data))
+                # self.ser.write(self.data)
                 # print(self.data.hex())
+               
+                # if not self.wait_for_ack():
+                #     print("Did not receive 0xFF acknowledgement.")
+                # else:       
+                #     print("receive 0xFF acknowledgement.")    
                 index = 0
+                count = 0
                 while self.running:
-                    chunk = file.read(128)
+                    if count==0:
+                        self.data = b'' 
+                        chunk = file.read(62)
+                        self.data+=struct.pack('B', 0x7F)
+                        self.data+=struct.pack('B', 0xF0)
+                        self.data+=chunk
+                    else:
+                        self.data = b''
+                        chunk = file.read(64)
+                        self.data +=chunk
+                 
+
+                    # self.data = b''
+                    # chunk = file.read(64)
                     if not chunk:
                         break
-                    self.data = b''
-                    if len(chunk) == 128:
-                        self.data += struct.pack('B', 0x02)
-                    else:
-                        self.data += struct.pack('B', 0x02)
-                    self.data += struct.pack('>I', index)
-                    self.data +=chunk
-                    self.data +=struct.pack('>I', crc16_func(self.data))
+                    # self.data +=chunk
                     self.ser.write(self.data)
+                    # if len(chunk) == 128:
+                    #     self.data += struct.pack('B', 0x02)
+                    # else:
+                    #     self.data += struct.pack('B', 0x02)
+                    # self.data += struct.pack('>I', index)
+                    
+                    # self.data +=struct.pack('>I', crc16_func(self.data))
+                    count += 1
+                    if count > 3:
+                        count=0
+                    
                     print(self.data.hex())
                     index += len(chunk)
-                    self.progress_signal.emit(index)
+                    if not self.wait_for_ack():
+                        print("Did not receive 0xFF acknowledgement.")
+                    else:       
+                        print("receive 0xFF acknowledgement.")
+                        self.progress_signal.emit(index)
         except Exception as e:
             QMessageBox.warning(self, 'tips!', str(e), QMessageBox.Ok)
         finally:
             self.ser.close()
             self.data_signal.emit(bytearray("ok", 'utf-8'))
+    
 
+
+    def wait_for_ack(self):
+        timeout = 5000  # 5 seconds timeout
+        start_time = time.time()
+        while time.time() - start_time < timeout / 1000:
+            if self.ser.in_waiting > 0:
+                ack = self.ser.read(1)
+                if ack == b'\xff':
+                    return True
+        return False
+    
     def stop(self):
         self.running = False
         self.wait()
